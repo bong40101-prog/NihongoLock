@@ -219,9 +219,9 @@ public class SettingsActivity extends Activity {
         root.addView(accessCard);
 
         LinearLayout levelCard = Ui.card(this);
-        levelCard.addView(Ui.text(this, "JLPT 기준 레벨", 20, Color.WHITE));
+        levelCard.addView(Ui.text(this, "JLPT 대비 레벨", 20, Color.WHITE));
         levelCard.addView(Ui.text(this,
-                "Lv.1 입문\nLv.2 JLPT N5\nLv.3 JLPT N4\nLv.4 JLPT N3\nLv.5 JLPT N2\nLv.6 JLPT N1\n\n수동 레벨업 테스트는 10문제 중 8개 이상 정답이면 한 단계 올라갑니다.\n일반 학습 중 자동 레벨 등락은 최근 정답률에 따라 계속 적용됩니다.",
+                "공식 JLPT 합격 판정이 아닌 학습 난이도입니다.\n\nLv.1 입문\nLv.2 N5 기초\nLv.3 N4 기초\nLv.4 N3 기초\nLv.5 N3 심화·N2 준비\nLv.6 N2 심화·N1 준비\n\n수동 레벨업 테스트는 10문제 중 8개 이상 정답이면 한 단계 올라갑니다.\n일반 학습 자동 등락은 20문제 누적 기준으로 90% 이상이면 상승, 65% 미만이면 하락합니다.",
                 15, Color.LTGRAY));
         root.addView(levelCard);
 
