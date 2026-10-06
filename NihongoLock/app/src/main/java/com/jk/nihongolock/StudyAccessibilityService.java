@@ -193,7 +193,7 @@ public class StudyAccessibilityService extends AccessibilityService {
         int h = left / 3600;
         int m = (left % 3600) / 60;
         int s = left % 60;
-        detail.setText("35분 완료 시 즉시 해제\n22:00 자동 해제 · 남은 벌칙창 " + String.format(java.util.Locale.KOREA, "%d:%02d:%02d", h, m, s));
+        detail.setText("45분 완료 시 즉시 해제\n22:00 자동 해제 · 남은 벌칙창 " + String.format(java.util.Locale.KOREA, "%d:%02d:%02d", h, m, s));
     }
 
     private void hideOverlay() {
