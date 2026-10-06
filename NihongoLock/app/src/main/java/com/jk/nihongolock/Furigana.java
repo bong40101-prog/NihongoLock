@@ -87,6 +87,16 @@ public final class Furigana {
         add("考え", "かんがえ");
         add("方法", "ほうほう");
         add("必要", "ひつよう");
+        // Additional compounds used by the expanded question bank.
+        add("青森", "あおもり");
+        add("一軒", "いっけん");
+        add("程度", "ていど");
+        add("安心", "あんしん");
+        add("自分", "じぶん");
+        add("簡単", "かんたん");
+        add("説明", "せつめい");
+        add("努力", "どりょく");
+        add("無理", "むり");
 
         // Single-kanji stems keep kana endings outside the ruby span.
         add("飲", "の");
@@ -116,6 +126,26 @@ public final class Furigana {
         add("無", "む");
         add("落", "お");
         add("応", "おう");
+        add("駅", "えき");
+        add("水", "みず");
+        add("朝", "あさ");
+        add("夜", "よる");
+        add("店", "みせ");
+        add("安", "やす");
+        add("高", "たか");
+        add("休", "やす");
+        add("私", "わたし");
+        add("近", "ちか");
+        add("困", "こま");
+        add("良", "よ");
+        add("慣", "な");
+        add("気", "き");
+        add("願", "ねが");
+        add("分", "わか");
+        add("少", "すこ");
+        add("早", "はや");
+        add("考", "かんが");
+        add("着", "つ");
     }
 
     private Furigana() {}
