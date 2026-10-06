@@ -23,11 +23,14 @@ public class StudyActivity extends Activity {
     private TextView stateText;
     private LinearLayout questionBox;
     private List<QuestionBank.Q> questions;
+    private List<QuestionBank.Q> speakingQuestions;
     private JapaneseSpeech speech;
     private int qIndex = 0;
+    private int answersSinceSpeaking = 0;
     private int pendingSeconds = 0;
     private long lastInteraction = 0L;
     private boolean resumed = false;
+    private boolean waitingForSpeaking = false;
 
     private final Runnable tick = new Runnable() {
         @Override public void run() {
@@ -107,6 +110,10 @@ public class StudyActivity extends Activity {
     private void reloadQuestions() {
         questions = QuestionBank.forLevel(repo.getLevel(), repo.getRecentQuestionIds());
         if (questions.isEmpty()) questions = QuestionBank.forLevel(1);
+        speakingQuestions = QuestionBank.speakingForLevel(repo.getLevel(), repo.getRecentQuestionIds());
+        if (speakingQuestions.isEmpty()) {
+            speakingQuestions = QuestionBank.speakingForLevel(repo.getLevel(), new java.util.HashSet<>());
+        }
         qIndex = 0;
     }
 
@@ -127,13 +134,6 @@ public class StudyActivity extends Activity {
             speech.speak(q.audioText);
         });
         questionBox.addView(listen);
-        Button speaking = Ui.button(this, "🎙 말하기 (오늘 20분에 포함)");
-        speaking.setOnClickListener(v -> {
-            markInteraction();
-            flushPending();
-            startActivity(new Intent(this, SpeakingActivity.class));
-        });
-        questionBox.addView(speaking);
         for (int i = 0; i < q.options.length; i++) {
             final int chosen = i;
             RubyTextView b = Ui.rubyButton(this, q.options[i]);
@@ -148,6 +148,23 @@ public class StudyActivity extends Activity {
         repo.recordAnswer(q, chosen, "study");
         Toast.makeText(this, (correct ? "정답 ✓  " : "오답 · ") + q.explanation, Toast.LENGTH_LONG).show();
         qIndex++;
+        answersSinceSpeaking++;
+        showNextTask();
+    }
+
+    /** Mixes one automatic speaking round into the same 20/35-minute session. */
+    private void showNextTask() {
+        int current = repo.getTodaySeconds() + pendingSeconds;
+        if (current < repo.getTargetSeconds() && !speakingQuestions.isEmpty()
+                && answersSinceSpeaking >= 4) {
+            answersSinceSpeaking = 0;
+            waitingForSpeaking = true;
+            flushPending();
+            startActivity(new Intent(this, SpeakingActivity.class)
+                    .putExtra(SpeakingActivity.EXTRA_AUTO_START, true)
+                    .putExtra(SpeakingActivity.EXTRA_FROM_STUDY, true));
+            return;
+        }
         showQuestion();
     }
 
@@ -176,7 +193,9 @@ public class StudyActivity extends Activity {
         int target = repo.getTargetSeconds();
         timerText.setText(StudyRepository.formatSeconds(current) + " / " + StudyRepository.formatSeconds(target));
         boolean active = lastInteraction > 0 && SystemClock.elapsedRealtime() - lastInteraction <= 90_000L;
-        stateText.setText(active ? "● 학습시간 기록 중" : "Ⅱ 일시정지 · 화면을 터치하고 문제를 풀면 다시 기록됩니다.");
+        stateText.setText(active
+                ? "● 학습시간 기록 중 · 듣기/말하기 자동 포함(4문제마다 말하기)"
+                : "Ⅱ 일시정지 · 화면을 터치하고 문제를 풀면 다시 기록됩니다.");
 
         if (current >= target) {
             flushPending();
@@ -190,6 +209,10 @@ public class StudyActivity extends Activity {
         super.onResume();
         resumed = true;
         repo.reconcile();
+        if (waitingForSpeaking) {
+            waitingForSpeaking = false;
+            showQuestion();
+        }
         updateStatus();
     }
 
