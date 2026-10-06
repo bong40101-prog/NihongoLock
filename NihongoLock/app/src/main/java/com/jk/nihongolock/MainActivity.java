@@ -32,6 +32,7 @@ public class MainActivity extends Activity {
         }
         build();
         UpdateManager.maybeCheckOnLaunch(this);
+        GitHubStudySync.schedule(this);
     }
 
     private void build() {
@@ -73,11 +74,19 @@ public class MainActivity extends Activity {
         study.setOnClickListener(v -> startActivity(new Intent(this, StudyActivity.class)));
         root.addView(study);
 
+        Button speaking = Ui.button(this, "🎙 말하기 연습");
+        speaking.setOnClickListener(v -> startActivity(new Intent(this, SpeakingActivity.class)));
+        root.addView(speaking);
+
+        Button writing = Ui.button(this, "⌨ 쓰기 연습");
+        writing.setOnClickListener(v -> startActivity(new Intent(this, WritingActivity.class)));
+        root.addView(writing);
+
         Button ai = Ui.button(this, "GPT 일본어 첨삭");
         ai.setOnClickListener(v -> startActivity(new Intent(this, AiPracticeActivity.class)));
         root.addView(ai);
 
-        Button level = Ui.button(this, repo.isLevelTestDone() ? "레벨 테스트 다시 하기" : "처음 레벨 테스트 시작");
+        Button level = Ui.button(this, "수동 레벨업 테스트 (10문제)");
         level.setOnClickListener(v -> startActivity(new Intent(this, LevelTestActivity.class)));
         root.addView(level);
 
