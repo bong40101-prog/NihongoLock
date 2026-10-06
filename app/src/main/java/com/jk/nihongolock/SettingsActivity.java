@@ -1,12 +1,8 @@
 package com.jk.nihongolock;
 
 import android.app.Activity;
-import android.content.ComponentName;
-import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.provider.Settings;
-import android.text.TextUtils;
 import android.text.InputType;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -27,17 +23,12 @@ public class SettingsActivity extends Activity {
     private TextView testState;
     private EditText updateRepoInput;
     private TextView updateState;
-    private GitHubTokenStore githubTokenStore;
-    private EditText syncRepoInput;
-    private EditText syncTokenInput;
-    private TextView syncState;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Ui.darkSystemBars(this);
         keyStore = new ApiKeyStore(this);
-        githubTokenStore = new GitHubTokenStore(this);
         build();
     }
 
@@ -156,75 +147,6 @@ public class SettingsActivity extends Activity {
         updateCard.addView(updateState);
         root.addView(updateCard);
 
-        LinearLayout syncCard = Ui.card(this);
-        syncCard.addView(Ui.text(this, "학습 기록 GitHub 백업", 20, Color.WHITE));
-        syncCard.addView(Ui.text(this,
-                "맞힌 문제·틀린 문제·선택 답·학습 시간·레벨을 자동으로 저장합니다. 기록은 GitHub 저장소에 보이므로 private 저장소를 권장합니다. OpenAI API Key는 업로드하지 않습니다.",
-                14, Color.LTGRAY));
-
-        syncRepoInput = new EditText(this);
-        syncRepoInput.setHint("GitHub owner/repo");
-        syncRepoInput.setText(GitHubStudySync.getRepo(this));
-        syncRepoInput.setTextColor(Color.WHITE);
-        syncRepoInput.setHintTextColor(Color.GRAY);
-        syncRepoInput.setSingleLine(true);
-        syncCard.addView(syncRepoInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        syncTokenInput = new EditText(this);
-        syncTokenInput.setHint("GitHub fine-grained token (Contents: Read and write)");
-        syncTokenInput.setTextColor(Color.WHITE);
-        syncTokenInput.setHintTextColor(Color.GRAY);
-        syncTokenInput.setSingleLine(true);
-        syncTokenInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        syncCard.addView(syncTokenInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        Button saveSync = Ui.button(this, "학습 기록 백업 설정 저장");
-        saveSync.setOnClickListener(v -> saveSyncSettings());
-        syncCard.addView(saveSync);
-
-        Button uploadSync = Ui.button(this, "지금 학습 기록 업로드");
-        uploadSync.setOnClickListener(v -> {
-            if (!saveSyncSettings()) return;
-            uploadSync.setEnabled(false);
-            syncState.setText("GitHub에 업로드 중…");
-            GitHubStudySync.syncNow(this, (success, message) -> runOnUiThread(() -> {
-                uploadSync.setEnabled(true);
-                syncState.setText((success ? "✓ " : "") + message);
-            }));
-        });
-        syncCard.addView(uploadSync);
-
-        Button deleteToken = Ui.button(this, "저장된 GitHub 토큰 삭제");
-        deleteToken.setOnClickListener(v -> {
-            githubTokenStore.delete();
-            syncTokenInput.setText("");
-            syncState.setText("GitHub 토큰을 삭제했습니다. 자동 백업이 중지됩니다.");
-        });
-        syncCard.addView(deleteToken);
-
-        syncState = Ui.text(this, githubTokenStore.masked() + " · " + GitHubStudySync.lastUpload(this), 14, Color.LTGRAY);
-        syncState.setPadding(0, Ui.dp(this,8), 0, 0);
-        syncCard.addView(syncState);
-        root.addView(syncCard);
-
-        LinearLayout accessCard = Ui.card(this);
-        boolean access = isAccessibilityServiceEnabled();
-        accessCard.addView(Ui.text(this, "강제 학습 권한", 20, Color.WHITE));
-        accessCard.addView(Ui.text(this,
-                access ? "✓ 접근성 서비스가 켜져 있습니다." : "꺼져 있음. 벌칙 중 다른 앱을 막으려면 한 번 켜야 합니다.",
-                14, access ? Color.rgb(101,209,138) : Color.rgb(255,180,80)));
-        Button accessButton = Ui.button(this, access ? "접근성 설정 확인" : "접근성 설정 열기");
-        accessButton.setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
-        accessCard.addView(accessButton);
-        root.addView(accessCard);
-
-        LinearLayout levelCard = Ui.card(this);
-        levelCard.addView(Ui.text(this, "JLPT 기준 레벨", 20, Color.WHITE));
-        levelCard.addView(Ui.text(this,
-                "Lv.1 입문\nLv.2 JLPT N5\nLv.3 JLPT N4\nLv.4 JLPT N3\nLv.5 JLPT N2\nLv.6 JLPT N1\n\n레벨 테스트 결과와 최근 정답률에 따라 문제 범위가 자동 조정됩니다.",
-                15, Color.LTGRAY));
-        root.addView(levelCard);
-
         LinearLayout rule = Ui.card(this);
         rule.addView(Ui.text(this, "고정 학습 규칙", 20, Color.WHITE));
         rule.addView(Ui.text(this,
@@ -247,27 +169,6 @@ public class SettingsActivity extends Activity {
             Toast.makeText(this, "저장했습니다.", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Toast.makeText(this, "저장 실패: " + e.getMessage(), Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private boolean saveSyncSettings() {
-        String rawRepo = syncRepoInput.getText().toString().trim();
-        String normalized = UpdateManager.normalizeRepo(rawRepo);
-        if (normalized.isEmpty()) {
-            syncState.setText("GitHub 저장소를 owner/repo 형식으로 입력해 주세요.");
-            return false;
-        }
-        try {
-            String token = syncTokenInput.getText().toString().trim();
-            if (!token.isEmpty()) githubTokenStore.save(token);
-            GitHubStudySync.setRepo(this, normalized);
-            syncRepoInput.setText(normalized);
-            syncTokenInput.setText("");
-            syncState.setText(githubTokenStore.masked() + " · " + GitHubStudySync.lastUpload(this));
-            return true;
-        } catch (Exception e) {
-            syncState.setText("백업 설정 저장 실패: " + e.getMessage());
-            return false;
         }
     }
 
@@ -309,17 +210,5 @@ public class SettingsActivity extends Activity {
     @Override protected void onDestroy() {
         executor.shutdownNow();
         super.onDestroy();
-    }
-
-    private boolean isAccessibilityServiceEnabled() {
-        String expected = new ComponentName(this, StudyAccessibilityService.class).flattenToString();
-        String enabled = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-        if (enabled == null) return false;
-        TextUtils.SimpleStringSplitter splitter = new TextUtils.SimpleStringSplitter(':');
-        splitter.setString(enabled);
-        while (splitter.hasNext()) {
-            if (expected.equalsIgnoreCase(splitter.next())) return true;
-        }
-        return false;
     }
 }

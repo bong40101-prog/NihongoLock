@@ -3,11 +3,7 @@ package com.jk.nihongolock;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
-
 import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
@@ -32,16 +28,10 @@ public class StudyRepository {
     private static final String K_LEVEL_TEST_DONE = "level_test_done";
     private static final String K_CORRECT = "correct";
     private static final String K_ANSWERED = "answered";
-    private static final String K_TOTAL_CORRECT = "total_correct";
-    private static final String K_TOTAL_ANSWERED = "total_answered";
-    private static final String K_ANSWER_LOG = "answer_log";
-    private static final int MAX_ANSWER_LOGS = 1000;
 
-    private final Context context;
     private final SharedPreferences p;
 
     public StudyRepository(Context context) {
-        this.context = context.getApplicationContext();
         p = context.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
@@ -157,7 +147,6 @@ public class StudyRepository {
         int next = Math.max(0, p.getInt(K_SECONDS, 0) + seconds);
         p.edit().putInt(K_SECONDS, next).apply();
         reconcile();
-        GitHubStudySync.schedule(context);
     }
 
     public synchronized int getTodaySeconds() {
@@ -219,7 +208,6 @@ public class StudyRepository {
                 .putBoolean(K_PENDING_RESET, false)
                 .apply();
         if (p.getInt(K_SECONDS, 0) >= BASIC_SECONDS) creditDateIfNeeded(today);
-        GitHubStudySync.schedule(context);
         return true;
     }
 
@@ -254,101 +242,11 @@ public class StudyRepository {
         return p.getBoolean(K_LEVEL_TEST_DONE, false);
     }
 
-    public synchronized String exportJson() {
-        reconcile();
-        JSONObject root = new JSONObject();
-        try {
-            root.put("schemaVersion", 1);
-            root.put("exportedAt", Instant.now().toString());
-            root.put("date", LocalDate.now().toString());
-            root.put("todayStudySeconds", p.getInt(K_SECONDS, 0));
-            root.put("targetSeconds", getTargetSeconds());
-            root.put("streakDays", p.getInt(K_STREAK, 0));
-            root.put("passes", p.getInt(K_PASSES, 0));
-            root.put("level", getLevel());
-            root.put("levelLabel", levelLabel(getLevel()));
-            root.put("totalAnswered", p.getInt(K_TOTAL_ANSWERED, 0));
-            root.put("totalCorrect", p.getInt(K_TOTAL_CORRECT, 0));
-            root.put("answerHistory", new JSONArray(p.getString(K_ANSWER_LOG, "[]")));
-        } catch (Exception e) {
-            return "{\"schemaVersion\":1,\"error\":\"export_failed\"}";
-        }
-        try {
-            return root.toString(2);
-        } catch (Exception ignored) {
-            return root.toString();
-        }
-    }
-
-    public static String levelLabel(int level) {
-        switch (Math.max(1, Math.min(6, level))) {
-            case 1: return "Lv.1 입문";
-            case 2: return "Lv.2 JLPT N5";
-            case 3: return "Lv.3 JLPT N4";
-            case 4: return "Lv.4 JLPT N3";
-            case 5: return "Lv.5 JLPT N2";
-            default: return "Lv.6 JLPT N1";
-        }
-    }
-
     public synchronized void recordAnswer(boolean correct) {
-        recordAnswerInternal(null, -1, correct, "study", true);
-    }
-
-    public synchronized void recordAnswer(QuestionBank.Q question, int chosen, String source) {
-        if (question == null) {
-            recordAnswerInternal(null, chosen, false, source, true);
-            return;
-        }
-        recordAnswerInternal(question, chosen, chosen == question.answer, source, true);
-    }
-
-    public synchronized void recordLevelTestAnswer(QuestionBank.Q question, int chosen) {
-        if (question == null) return;
-        recordAnswerInternal(question, chosen, chosen == question.answer, "level_test", false);
-    }
-
-    private void recordAnswerInternal(QuestionBank.Q question, int chosen, boolean correct,
-                                      String source, boolean adaptLevel) {
-        SharedPreferences.Editor e = p.edit()
-                .putInt(K_ANSWERED, p.getInt(K_ANSWERED, 0) + 1)
-                .putInt(K_TOTAL_ANSWERED, p.getInt(K_TOTAL_ANSWERED, 0) + 1);
-        if (correct) {
-            e.putInt(K_CORRECT, p.getInt(K_CORRECT, 0) + 1)
-                    .putInt(K_TOTAL_CORRECT, p.getInt(K_TOTAL_CORRECT, 0) + 1);
-        }
-        appendAnswerLog(question, chosen, correct, source);
+        SharedPreferences.Editor e = p.edit().putInt(K_ANSWERED, p.getInt(K_ANSWERED,0) + 1);
+        if (correct) e.putInt(K_CORRECT, p.getInt(K_CORRECT,0) + 1);
         e.apply();
-        if (adaptLevel) adaptLevel();
-        GitHubStudySync.schedule(context);
-    }
-
-    private void appendAnswerLog(QuestionBank.Q question, int chosen, boolean correct, String source) {
-        JSONArray logs;
-        try {
-            logs = new JSONArray(p.getString(K_ANSWER_LOG, "[]"));
-        } catch (Exception ignored) {
-            logs = new JSONArray();
-        }
-        JSONObject row = new JSONObject();
-        try {
-            row.put("at", Instant.now().toString());
-            row.put("source", source == null ? "study" : source);
-            row.put("correct", correct);
-            row.put("level", getLevel());
-            if (question != null) {
-                row.put("question", question.prompt);
-                row.put("audio", question.audioText);
-                row.put("selected", chosen >= 0 && chosen < question.options.length ? question.options[chosen] : "");
-                row.put("answer", question.answer >= 0 && question.answer < question.options.length
-                        ? question.options[question.answer] : "");
-            }
-            logs.put(row);
-            while (logs.length() > MAX_ANSWER_LOGS) logs.remove(0);
-            p.edit().putString(K_ANSWER_LOG, logs.toString()).apply();
-        } catch (Exception ignored) {
-            // A failed history row must never interrupt a learning session.
-        }
+        adaptLevel();
     }
 
     private void adaptLevel() {

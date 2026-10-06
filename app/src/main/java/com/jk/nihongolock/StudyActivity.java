@@ -23,7 +23,6 @@ public class StudyActivity extends Activity {
     private TextView stateText;
     private LinearLayout questionBox;
     private List<QuestionBank.Q> questions;
-    private JapaneseSpeech speech;
     private int qIndex = 0;
     private int pendingSeconds = 0;
     private long lastInteraction = 0L;
@@ -46,7 +45,6 @@ public class StudyActivity extends Activity {
         super.onCreate(savedInstanceState);
         Ui.darkSystemBars(this);
         repo = new StudyRepository(this);
-        speech = new JapaneseSpeech(this);
         build();
         handler.post(tick);
     }
@@ -112,18 +110,12 @@ public class StudyActivity extends Activity {
         if (qIndex >= questions.size()) reloadQuestions();
         QuestionBank.Q q = QuestionBank.shuffled(questions.get(qIndex));
         questionBox.removeAllViews();
-        RubyTextView prompt = Ui.rubyText(this, q.prompt, 20, Color.WHITE);
-        prompt.setTextPadding(0, 0, 0, 8);
+        TextView prompt = Ui.text(this, q.prompt, 20, Color.WHITE);
+        prompt.setPadding(0, 0, 0, Ui.dp(this, 8));
         questionBox.addView(prompt);
-        Button listen = Ui.button(this, "🔊 일본어 듣기");
-        listen.setOnClickListener(v -> {
-            markInteraction();
-            speech.speak(q.audioText);
-        });
-        questionBox.addView(listen);
         for (int i = 0; i < q.options.length; i++) {
             final int chosen = i;
-            RubyTextView b = Ui.rubyButton(this, q.options[i]);
+            Button b = Ui.button(this, q.options[i]);
             b.setOnClickListener(v -> answer(q, chosen));
             questionBox.addView(b);
         }
@@ -132,7 +124,7 @@ public class StudyActivity extends Activity {
     private void answer(QuestionBank.Q q, int chosen) {
         markInteraction();
         boolean correct = chosen == q.answer;
-        repo.recordAnswer(q, chosen, "study");
+        repo.recordAnswer(correct);
         Toast.makeText(this, (correct ? "정답 ✓  " : "오답 · ") + q.explanation, Toast.LENGTH_LONG).show();
         qIndex++;
         showQuestion();
@@ -189,7 +181,6 @@ public class StudyActivity extends Activity {
     @Override protected void onDestroy() {
         flushPending();
         handler.removeCallbacksAndMessages(null);
-        if (speech != null) speech.shutdown();
         super.onDestroy();
     }
 

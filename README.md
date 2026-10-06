@@ -1,4 +1,4 @@
-# NihongoLock v0.3.0
+# NihongoLock v0.2.0
 
 개인용 Galaxy Z Fold8 일본어 자기통제 앱.
 
@@ -12,9 +12,6 @@
 - 10일 연속 성공 시 PASS 1장, 최대 2장
 - 앱을 켜 놓기만 한 시간은 인정하지 않음. 90초 동안 조작이 없으면 타이머 정지
 - 앱 삭제는 공부 포기로 간주. 삭제하면 앱의 제한과 데이터가 함께 사라짐
-- 일본어 문제와 자유 첨삭 화면에 후리가나(한자 위 히라가나) 표시
-- 문제/레벨 테스트에서 일본어 듣기 버튼 제공
-- 레벨 기준: Lv.1 입문, Lv.2 JLPT N5, Lv.3 N4, Lv.4 N3, Lv.5 N2, Lv.6 N1
 
 ## 전화 / 안전 예외
 
@@ -41,17 +38,6 @@
 - API가 없어도 기본 문제은행, 학습 타이머, 벌칙, PASS는 동작
 
 개인용 사이드로드 앱이므로 기기에 API Key를 저장하는 구조입니다. 더 높은 보안이 필요하면 추후 별도 백엔드 프록시로 바꾸는 것을 권장합니다.
-
-## 학습 기록 GitHub 백업
-
-`API / 앱 설정 → 학습 기록 GitHub 백업`에서 GitHub 저장소와 fine-grained token을 한 번 설정할 수 있습니다.
-
-- `Contents: Read and write` 권한이 있는 token이 필요합니다.
-- 기본 저장소는 `bong40101-prog/NihongoLock`입니다.
-- `data/study-record.json`에 정답/오답, 선택 답, 문제, 레벨, 학습 시간과 누적 통계가 저장됩니다.
-- GitHub token은 Android Keystore로 암호화하고, OpenAI API Key와 학습 기록에는 포함하지 않습니다.
-- 기록을 공개하고 싶지 않으면 GitHub private repository를 사용하세요.
-- 답변 후 잠시 뒤 자동 업로드하며, 설정 화면에서 수동 업로드도 할 수 있습니다.
 
 ## 원격 업데이트
 

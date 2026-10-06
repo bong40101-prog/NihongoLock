@@ -92,12 +92,12 @@ public class ApiKeyStore {
 
     public void setModel(String model) {
         String m = model == null ? "" : model.trim();
-        if (m.isEmpty()) m = "gpt-5.6-luna";
+        if (m.isEmpty()) m = "gpt-6-luna";
         prefs.edit().putString(K_MODEL, m).apply();
     }
 
     public String getModel() {
-        return prefs.getString(K_MODEL, "gpt-5.6-luna");
+        return prefs.getString(K_MODEL, "gpt-6-luna");
     }
 
     public String maskedKey() {

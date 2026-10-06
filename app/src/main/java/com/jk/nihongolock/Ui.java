@@ -75,24 +75,6 @@ public final class Ui {
         return t;
     }
 
-    public static RubyTextView rubyText(Context c, String value, float sp, int color) {
-        RubyTextView t = new RubyTextView(c);
-        t.setTextSize(sp);
-        t.setTextColor(color);
-        t.setText(value);
-        return t;
-    }
-
-    public static RubyTextView rubyButton(Context c, String value) {
-        RubyTextView t = rubyText(c, value, 16f, Color.WHITE);
-        t.setRubyButtonBackground();
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(0, dp(c, 8), 0, 0);
-        t.setLayoutParams(lp);
-        return t;
-    }
-
     public static void darkSystemBars(Activity a) {
         a.getWindow().setStatusBarColor(Color.rgb(16,17,20));
         a.getWindow().setNavigationBarColor(Color.rgb(16,17,20));

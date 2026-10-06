@@ -1,9 +1,13 @@
 package com.jk.nihongolock;
 
 import android.app.Activity;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.provider.Settings;
+import android.text.TextUtils;
+import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -42,9 +46,7 @@ public class MainActivity extends Activity {
         scroll.addView(root);
         setContentView(scroll);
 
-        TextView title = Ui.title(this, "ニホンゴ LOCK");
-        title.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 14));
-        root.addView(title);
+        root.addView(Ui.title(this, "ニホンゴ LOCK"));
         root.addView(Ui.text(this, "매일 20분. 놓치면 다음날 17:00~22:00에 35분.", 15, Color.LTGRAY));
 
         LinearLayout status = Ui.card(this);
@@ -57,7 +59,7 @@ public class MainActivity extends Activity {
         status.addView(progress);
         status.addView(Ui.text(this, "연속 성공  " + repo.getStreak() + "일", 16, Color.LTGRAY));
         status.addView(Ui.text(this, "PASS  " + repo.getPasses() + " / " + StudyRepository.MAX_PASSES, 16, Color.LTGRAY));
-        status.addView(Ui.text(this, "현재 레벨  " + StudyRepository.levelLabel(repo.getLevel()), 16, Color.LTGRAY));
+        status.addView(Ui.text(this, "현재 레벨  Lv." + repo.getLevel(), 16, Color.LTGRAY));
 
         String penalty;
         if (repo.isPenaltyActive()) penalty = "🔥 벌칙 진행 중 · 35분 완료 또는 22:00 해제";
@@ -92,6 +94,17 @@ public class MainActivity extends Activity {
             root.addView(pass);
         }
 
+        boolean access = isAccessibilityServiceEnabled();
+        LinearLayout authCard = Ui.card(this);
+        authCard.addView(Ui.text(this, "강제 학습 권한", 18, Color.WHITE));
+        authCard.addView(Ui.text(this,
+                access ? "✓ 접근성 서비스가 켜져 있습니다." : "꺼져 있음. 벌칙 중 다른 앱 차단을 위해 한 번 켜야 합니다.",
+                14, access ? Color.rgb(101,209,138) : Color.rgb(255,180,80)));
+        Button accessButton = Ui.button(this, access ? "접근성 설정 확인" : "접근성 설정 열기");
+        accessButton.setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
+        authCard.addView(accessButton);
+        root.addView(authCard);
+
         Button settings = Ui.button(this, "API / 앱 설정");
         settings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
         root.addView(settings);
@@ -103,4 +116,15 @@ public class MainActivity extends Activity {
         root.addView(note);
     }
 
+    private boolean isAccessibilityServiceEnabled() {
+        String expected = new ComponentName(this, StudyAccessibilityService.class).flattenToString();
+        String enabled = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+        if (enabled == null) return false;
+        TextUtils.SimpleStringSplitter splitter = new TextUtils.SimpleStringSplitter(':');
+        splitter.setString(enabled);
+        while (splitter.hasNext()) {
+            if (expected.equalsIgnoreCase(splitter.next())) return true;
+        }
+        return false;
+    }
 }

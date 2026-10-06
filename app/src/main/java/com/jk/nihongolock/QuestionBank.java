@@ -12,19 +12,13 @@ public final class QuestionBank {
         public final int answer;
         public final String explanation;
         public final int level;
-        public final String audioText;
 
         public Q(String prompt, String[] options, int answer, String explanation, int level) {
-            this(prompt, options, answer, explanation, level, JapaneseSpeech.extract(prompt, options, answer));
-        }
-
-        public Q(String prompt, String[] options, int answer, String explanation, int level, String audioText) {
             this.prompt = prompt;
             this.options = options;
             this.answer = answer;
             this.explanation = explanation;
             this.level = level;
-            this.audioText = audioText == null ? "" : audioText;
         }
     }
 
@@ -69,7 +63,7 @@ public final class QuestionBank {
             opts[i] = q.options[old];
             if (old == q.answer) newAnswer = i;
         }
-        return new Q(q.prompt, opts, newAnswer, q.explanation, q.level, q.audioText);
+        return new Q(q.prompt, opts, newAnswer, q.explanation, q.level);
     }
 
     public static List<Q> forLevel(int level) {
@@ -85,12 +79,11 @@ public final class QuestionBank {
         List<Q> pool = new ArrayList<>(ALL);
         Collections.shuffle(pool, new Random());
         // Ensure a spread of difficulty rather than only random beginner questions.
-        // The current bank yields roughly 20-30 questions while keeping each level represented.
         List<Q> out = new ArrayList<>();
         for (int level = 1; level <= 6; level++) {
             int added = 0;
             for (Q q : pool) {
-                if (q.level == level && added < 4) {
+                if (q.level == level && added < 2) {
                     out.add(q);
                     added++;
                 }

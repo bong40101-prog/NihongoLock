@@ -8,25 +8,23 @@ import android.util.Base64;
 
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
-import java.security.SecureRandom;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 
-public class ApiKeyStore {
-    private static final String PREFS = "api_secret_v1";
-    private static final String ALIAS = "nihongo_lock_openai_key_v1";
+/** Stores the optional GitHub write token in Android Keystore-backed storage. */
+public final class GitHubTokenStore {
+    private static final String PREFS = "github_sync_secret_v1";
+    private static final String ALIAS = "nihongo_lock_github_token_v1";
     private static final String K_CIPHER = "cipher";
     private static final String K_IV = "iv";
-    private static final String K_MODEL = "model";
-    private final Context context;
+
     private final SharedPreferences prefs;
 
-    public ApiKeyStore(Context context) {
-        this.context = context.getApplicationContext();
-        this.prefs = this.context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+    public GitHubTokenStore(Context context) {
+        prefs = context.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
     private SecretKey getOrCreateKey() throws Exception {
@@ -47,62 +45,46 @@ public class ApiKeyStore {
         return generator.generateKey();
     }
 
-    public synchronized void saveApiKey(String apiKey) throws Exception {
-        if (apiKey == null || apiKey.trim().isEmpty()) {
-            deleteApiKey();
+    public synchronized void save(String token) throws Exception {
+        if (token == null || token.trim().isEmpty()) {
+            delete();
             return;
         }
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey());
-        byte[] encrypted = cipher.doFinal(apiKey.trim().getBytes(StandardCharsets.UTF_8));
+        byte[] encrypted = cipher.doFinal(token.trim().getBytes(StandardCharsets.UTF_8));
         prefs.edit()
                 .putString(K_CIPHER, Base64.encodeToString(encrypted, Base64.NO_WRAP))
                 .putString(K_IV, Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP))
                 .apply();
     }
 
-    public synchronized String getApiKey() {
+    public synchronized String get() {
         try {
-            String enc = prefs.getString(K_CIPHER, null);
+            String encrypted = prefs.getString(K_CIPHER, null);
             String iv = prefs.getString(K_IV, null);
-            if (enc == null || iv == null) return null;
+            if (encrypted == null || iv == null) return null;
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            GCMParameterSpec spec = new GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP));
-            cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), spec);
-            byte[] plain = cipher.doFinal(Base64.decode(enc, Base64.NO_WRAP));
-            return new String(plain, StandardCharsets.UTF_8);
+            cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(),
+                    new GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)));
+            return new String(cipher.doFinal(Base64.decode(encrypted, Base64.NO_WRAP)), StandardCharsets.UTF_8);
         } catch (Exception e) {
             return null;
         }
     }
 
-    public synchronized void deleteApiKey() {
+    public synchronized void delete() {
         prefs.edit().remove(K_CIPHER).remove(K_IV).apply();
         try {
-            KeyStore ks = KeyStore.getInstance("AndroidKeyStore");
-            ks.load(null);
-            if (ks.containsAlias(ALIAS)) ks.deleteEntry(ALIAS);
+            KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+            keyStore.load(null);
+            if (keyStore.containsAlias(ALIAS)) keyStore.deleteEntry(ALIAS);
         } catch (Exception ignored) {}
     }
 
-    public boolean hasApiKey() {
-        String key = getApiKey();
-        return key != null && !key.isEmpty();
-    }
-
-    public void setModel(String model) {
-        String m = model == null ? "" : model.trim();
-        if (m.isEmpty()) m = "gpt-5.6-luna";
-        prefs.edit().putString(K_MODEL, m).apply();
-    }
-
-    public String getModel() {
-        return prefs.getString(K_MODEL, "gpt-5.6-luna");
-    }
-
-    public String maskedKey() {
-        String k = getApiKey();
-        if (k == null || k.length() < 10) return "저장된 키 없음";
-        return k.substring(0, Math.min(7, k.length())) + "••••••" + k.substring(k.length() - 4);
+    public String masked() {
+        String token = get();
+        if (token == null || token.length() < 8) return "저장된 GitHub 토큰 없음";
+        return token.substring(0, 4) + "••••••" + token.substring(token.length() - 4);
     }
 }

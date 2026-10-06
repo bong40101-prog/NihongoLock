@@ -35,7 +35,7 @@ public class AiPracticeActivity extends Activity {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler handler = new Handler(Looper.getMainLooper());
     private int promptIndex = 0;
-    private RubyTextView promptView;
+    private TextView promptView;
     private EditText answerInput;
     private TextView feedback;
     private TextView timer;
@@ -78,8 +78,8 @@ public class AiPracticeActivity extends Activity {
 
         LinearLayout card = Ui.card(this);
         card.addView(Ui.text(this, "다음을 자연스러운 일본어로 써보세요.", 14, Color.LTGRAY));
-        promptView = Ui.rubyText(this, PROMPTS[promptIndex], 20, Color.WHITE);
-        promptView.setTextPadding(0, 8, 0, 10);
+        promptView = Ui.text(this, PROMPTS[promptIndex], 20, Color.WHITE);
+        promptView.setPadding(0, Ui.dp(this, 8), 0, Ui.dp(this, 10));
         card.addView(promptView);
 
         answerInput = new EditText(this);
@@ -135,7 +135,7 @@ public class AiPracticeActivity extends Activity {
         String task = PROMPTS[promptIndex];
         executor.execute(() -> {
             try {
-                String input = "사용자 수준 " + StudyRepository.levelLabel(repo.getLevel()) + "\n한국어 과제: " + task + "\n사용자 일본어 답변: " + answer;
+                String input = "사용자 수준 Lv." + repo.getLevel() + "\n한국어 과제: " + task + "\n사용자 일본어 답변: " + answer;
                 String result = new OpenAiClient(keyStore).ask(
                         "당신은 한국인 성인 학습자를 위한 일본어 튜터입니다. 여행/친구 대화에서 실제 일본인이 쓰는 자연스러운 표현을 우선하세요. " +
                                 "답변은 한국어로 1) 의미가 통하는지 2) 문법/어휘 수정 3) 더 자연스러운 일본어 한 문장 4) 핵심 포인트 순서로 짧고 명확하게 주세요.",
