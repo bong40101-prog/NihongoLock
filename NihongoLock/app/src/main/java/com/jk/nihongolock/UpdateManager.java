@@ -2,12 +2,11 @@ package com.jk.nihongolock;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.PendingIntent;
 import android.content.Context;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
-import android.content.pm.PackageInstaller;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
@@ -17,8 +16,9 @@ import org.json.JSONObject;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -169,8 +169,8 @@ public final class UpdateManager {
         ExecutorService ex = Executors.newSingleThreadExecutor();
         ex.execute(() -> {
             try {
-                byte[] apk = downloadBytes(apkUrl);
-                installBytes(activity, apk);
+                File apk = downloadToFile(activity, apkUrl);
+                activity.runOnUiThread(() -> openSystemInstaller(activity, apk));
             } catch (Exception e) {
                 activity.runOnUiThread(() -> android.widget.Toast.makeText(activity,
                         "업데이트 실패: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show());
@@ -180,7 +180,7 @@ public final class UpdateManager {
         });
     }
 
-    private static byte[] downloadBytes(String url) throws Exception {
+    private static File downloadToFile(Context c, String url) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
         conn.setInstanceFollowRedirects(true);
         conn.setConnectTimeout(20000);
@@ -188,38 +188,48 @@ public final class UpdateManager {
         conn.setRequestProperty("User-Agent", USER_AGENT);
         int code = conn.getResponseCode();
         if (code < 200 || code >= 300) throw new IllegalStateException("APK 다운로드 HTTP " + code);
+
+        File dir = new File(c.getCacheDir(), "updates");
+        if (!dir.exists() && !dir.mkdirs()) throw new IllegalStateException("업데이트 임시 폴더를 만들 수 없습니다.");
+        File target = new File(dir, "update.apk");
+        if (target.exists() && !target.delete()) throw new IllegalStateException("이전 업데이트 파일을 정리할 수 없습니다.");
+
         try (InputStream in = new BufferedInputStream(conn.getInputStream());
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+             FileOutputStream out = new FileOutputStream(target)) {
             byte[] buf = new byte[64 * 1024];
             int n;
-            while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
-            byte[] bytes = out.toByteArray();
-            if (bytes.length < 10_000) throw new IllegalStateException("다운로드한 APK가 비정상적으로 작습니다.");
-            return bytes;
+            long total = 0L;
+            while ((n = in.read(buf)) != -1) {
+                out.write(buf, 0, n);
+                total += n;
+            }
+            out.flush();
+            if (total < 10_000L) throw new IllegalStateException("다운로드한 APK가 비정상적으로 작습니다.");
+            return target;
         }
     }
 
-    private static void installBytes(Context c, byte[] apk) throws Exception {
-        PackageInstaller installer = c.getPackageManager().getPackageInstaller();
-        PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
-        params.setAppPackageName(c.getPackageName());
-        params.setSize(apk.length);
-        int sessionId = installer.createSession(params);
-        PackageInstaller.Session session = installer.openSession(sessionId);
-        try (OutputStream out = session.openWrite("base.apk", 0, apk.length)) {
-            out.write(apk);
-            session.fsync(out);
+    private static void openSystemInstaller(Activity activity, File apk) {
+        Uri uri = Uri.parse("content://" + activity.getPackageName() + ".fileprovider/update.apk");
+        Intent install = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+        install.setDataAndType(uri, "application/vnd.android.package-archive");
+        install.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try {
+            activity.startActivity(install);
+        } catch (ActivityNotFoundException e) {
+            Intent view = new Intent(Intent.ACTION_VIEW);
+            view.setDataAndType(uri, "application/vnd.android.package-archive");
+            view.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            try {
+                activity.startActivity(view);
+            } catch (Exception fallbackError) {
+                android.widget.Toast.makeText(activity,
+                        "APK 설치 화면을 열 수 없습니다.", android.widget.Toast.LENGTH_LONG).show();
+            }
+        } catch (Exception e) {
+            android.widget.Toast.makeText(activity,
+                    "APK 설치 화면을 열 수 없습니다: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
         }
-
-        Intent result = new Intent(c, UpdateInstallReceiver.class);
-        result.setAction("com.jk.nihongolock.UPDATE_INSTALL_RESULT");
-        PendingIntent pending = PendingIntent.getBroadcast(
-                c,
-                sessionId,
-                result,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
-        session.commit(pending.getIntentSender());
-        session.close();
     }
 
     private static boolean isNewer(String remote, String local) {
