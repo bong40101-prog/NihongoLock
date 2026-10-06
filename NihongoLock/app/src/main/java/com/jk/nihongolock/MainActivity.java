@@ -46,7 +46,7 @@ public class MainActivity extends Activity {
         TextView title = Ui.title(this, "ニホンゴ LOCK");
         title.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 14));
         root.addView(title);
-        root.addView(Ui.text(this, "매일 20분. 놓치면 다음날 17:00~22:00에 35분.", 15, Color.LTGRAY));
+        root.addView(Ui.text(this, "매일 20분. 놓치면 다음날 17:00~22:00에 45분.", 15, Color.LTGRAY));
 
         LinearLayout status = Ui.card(this);
         int today = repo.getTodaySeconds();
@@ -61,8 +61,8 @@ public class MainActivity extends Activity {
         status.addView(Ui.text(this, "현재 레벨  " + StudyRepository.levelLabel(repo.getLevel()), 16, Color.LTGRAY));
 
         String penalty;
-        if (repo.isPenaltyActive()) penalty = "🔥 벌칙 진행 중 · 35분 완료 또는 22:00 해제";
-        else if (repo.isPenaltyPending()) penalty = "⚠ 오늘 17:00부터 벌칙 예정 · 미리 35분 완료하면 면제";
+        if (repo.isPenaltyActive()) penalty = "🔥 벌칙 진행 중 · 45분 완료 또는 22:00 해제";
+        else if (repo.isPenaltyPending()) penalty = "⚠ 오늘 17:00부터 벌칙 예정 · 미리 45분 완료하면 면제";
         else if (repo.isPenaltyComplete()) penalty = "✓ 오늘 벌칙 학습 완료";
         else penalty = "✓ 현재 벌칙 없음";
         TextView p = Ui.text(this, penalty, 15, repo.isPenaltyToday() ? Color.rgb(255,107,107) : Color.rgb(101,209,138));
@@ -70,7 +70,7 @@ public class MainActivity extends Activity {
         status.addView(p);
         root.addView(status);
 
-        Button study = Ui.button(this, repo.isPenaltyToday() && !repo.isPenaltyComplete() ? "35분 벌칙 학습 시작/계속" : "20분 학습 시작/계속");
+        Button study = Ui.button(this, repo.isPenaltyToday() && !repo.isPenaltyComplete() ? "45분 벌칙 학습 시작/계속" : "20분 학습 시작/계속");
         study.setOnClickListener(v -> startActivity(new Intent(this, StudyActivity.class)));
         root.addView(study);
         root.addView(Ui.text(this,
