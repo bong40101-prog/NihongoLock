@@ -16,7 +16,7 @@ import java.util.Set;
 
 public class StudyRepository {
     public static final int BASIC_SECONDS = 20 * 60;
-    public static final int PENALTY_SECONDS = 35 * 60;
+    public static final int PENALTY_SECONDS = 45 * 60;
     public static final int MAX_PASSES = 2;
 
     private static final String PREFS = "study_state_v1";
