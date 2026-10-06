@@ -1,5 +1,0 @@
-<resources>
-    <string name="app_name">니혼고 락</string>
-    <string name="accessibility_service_name">니혼고 락 강제 학습</string>
-    <string name="accessibility_description">벌칙 시간에 일반 앱 사용을 막고 일본어 학습 화면으로 안내합니다. 전화 및 긴급 기능은 예외입니다.</string>
-</resources>
