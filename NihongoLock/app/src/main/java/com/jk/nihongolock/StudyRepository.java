@@ -256,6 +256,36 @@ public class StudyRepository {
         return p.getInt(K_LEVEL, 1);
     }
 
+    /**
+     * A conservative, display-only estimate of progress within the current level.
+     * It never promotes or demotes the learner: automatic movement still uses
+     * the existing 20-answer rule, and the manual 10-question test remains
+     * separate. Recent correct answers are worth more when they are at or above
+     * the current level; today's real study time adds only a small bonus.
+     */
+    public synchronized int getExperiencePercent() {
+        int level = getLevel();
+        int points = 0;
+        int considered = 0;
+        try {
+            JSONArray logs = new JSONArray(p.getString(K_ANSWER_LOG, "[]"));
+            for (int i = logs.length() - 1; i >= 0 && considered < 20; i--) {
+                JSONObject row = logs.optJSONObject(i);
+                if (row == null || "level_test".equals(row.optString("source", ""))) continue;
+                considered++;
+                if (row.optBoolean("correct", false)) {
+                    int questionLevel = row.optInt("level", level);
+                    points += questionLevel >= level ? 5 : 3;
+                }
+            }
+        } catch (Exception ignored) {
+            // A malformed history must not prevent the home screen from loading.
+        }
+
+        int studyTimeBonus = Math.min(10, getTodaySeconds() / (5 * 60));
+        return Math.min(100, points + studyTimeBonus);
+    }
+
     public synchronized boolean isLevelTestDone() {
         return p.getBoolean(K_LEVEL_TEST_DONE, false);
     }
