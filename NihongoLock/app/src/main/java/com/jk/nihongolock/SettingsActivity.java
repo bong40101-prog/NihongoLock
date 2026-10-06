@@ -159,7 +159,7 @@ public class SettingsActivity extends Activity {
         LinearLayout syncCard = Ui.card(this);
         syncCard.addView(Ui.text(this, "학습 기록 GitHub 백업", 20, Color.WHITE));
         syncCard.addView(Ui.text(this,
-                "맞힌 문제·틀린 문제·선택 답·학습 시간·레벨을 자동으로 저장합니다. 기록은 GitHub 저장소에 보이므로 private 저장소를 권장합니다. OpenAI API Key는 업로드하지 않습니다.",
+                "맞힌 문제·틀린 문제·입력 답·말하기 결과·GPT 첨삭·학습 시간·레벨을 자동으로 저장합니다. 기록은 GitHub 저장소에 보이므로 private 저장소를 권장합니다. OpenAI API Key 자체는 업로드하지 않습니다. 실패하면 다음 실행 때 자동 재시도합니다.",
                 14, Color.LTGRAY));
 
         syncRepoInput = new EditText(this);
@@ -221,7 +221,7 @@ public class SettingsActivity extends Activity {
         LinearLayout levelCard = Ui.card(this);
         levelCard.addView(Ui.text(this, "JLPT 기준 레벨", 20, Color.WHITE));
         levelCard.addView(Ui.text(this,
-                "Lv.1 입문\nLv.2 JLPT N5\nLv.3 JLPT N4\nLv.4 JLPT N3\nLv.5 JLPT N2\nLv.6 JLPT N1\n\n레벨 테스트 결과와 최근 정답률에 따라 문제 범위가 자동 조정됩니다.",
+                "Lv.1 입문\nLv.2 JLPT N5\nLv.3 JLPT N4\nLv.4 JLPT N3\nLv.5 JLPT N2\nLv.6 JLPT N1\n\n수동 레벨업 테스트는 10문제 중 8개 이상 정답이면 한 단계 올라갑니다.\n일반 학습 중 자동 레벨 등락은 최근 정답률에 따라 계속 적용됩니다.",
                 15, Color.LTGRAY));
         root.addView(levelCard);
 
