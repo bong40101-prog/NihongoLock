@@ -11,6 +11,12 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false">
 
+        <provider
+            android:name=".ApkFileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
         <receiver android:name=".UpdateInstallReceiver" android:exported="false" />
 
         <activity android:name=".AiPracticeActivity" android:exported="false" />
