@@ -228,7 +228,7 @@ public class SettingsActivity extends Activity {
         LinearLayout rule = Ui.card(this);
         rule.addView(Ui.text(this, "고정 학습 규칙", 20, Color.WHITE));
         rule.addView(Ui.text(this,
-                "• 매일 20분\n• 미달 다음날 17:00~22:00 벌칙\n• 벌칙일 목표 35분\n• 35분 완료 시 즉시 해제\n• 22:00 자동 해제\n• 10일 연속 성공 = PASS 1장\n• PASS 최대 2장\n• 에이닷 전화/통화/긴급기능 예외\n• 앱 삭제 시 전체 종료",
+                "• 매일 20분\n• 미달 다음날 17:00~22:00 벌칙\n• 벌칙일 목표 45분\n• 45분 완료 시 즉시 해제\n• 22:00 자동 해제\n• 10일 연속 성공 = PASS 1장\n• PASS 최대 2장\n• 에이닷 전화/통화/긴급기능 예외\n• 앱 삭제 시 전체 종료",
                 15, Color.LTGRAY));
         root.addView(rule);
 
