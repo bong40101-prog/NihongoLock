@@ -27,7 +27,13 @@ public class AiPracticeActivity extends Activity {
             "호텔에 조금 일찍 도착했습니다. 얼리 체크인이 가능한지 물어보세요.",
             "식당에서 추천 메뉴와 인기 있는 술을 물어보세요.",
             "일본어를 아직 잘 못하지만 여행에서 불편하지 않을 정도로 말하고 싶습니다.",
-            "친구에게 이번 주말 시간이 있으면 같이 술 한잔하자고 제안하세요."
+            "친구에게 이번 주말 시간이 있으면 같이 술 한잔하자고 제안하세요.",
+            "사진을 찍어도 되는지 정중하게 물어보세요.",
+            "일정이 변경되어 친구에게 다시 연락한다고 말해보세요.",
+            "생각보다 사람이 많지만 분위기가 좋다고 말해보세요.",
+            "일본어로 자신의 취미와 자주 가는 여행지를 소개해보세요.",
+            "추천받은 가게가 정말 좋았다고 감사 인사를 해보세요.",
+            "상대방의 말을 잘 못 들었을 때 천천히 말해 달라고 부탁해보세요."
     };
 
     private StudyRepository repo;
@@ -143,6 +149,7 @@ public class AiPracticeActivity extends Activity {
                 runOnUiThread(() -> {
                     feedback.setText(result);
                     button.setEnabled(true);
+                    repo.recordGptFeedback(task, answer, result);
                     markInteraction();
                 });
             } catch (Exception e) {
