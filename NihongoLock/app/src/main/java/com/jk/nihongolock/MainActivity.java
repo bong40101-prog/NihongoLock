@@ -73,8 +73,11 @@ public class MainActivity extends Activity {
         Button study = Ui.button(this, repo.isPenaltyToday() && !repo.isPenaltyComplete() ? "35분 벌칙 학습 시작/계속" : "20분 학습 시작/계속");
         study.setOnClickListener(v -> startActivity(new Intent(this, StudyActivity.class)));
         root.addView(study);
+        root.addView(Ui.text(this,
+                "문제 풀이·듣기·말하기·쓰기 시간은 모두 하나의 오늘 학습시간으로 합산됩니다.",
+                13, Color.LTGRAY));
 
-        Button speaking = Ui.button(this, "🎙 말하기 연습");
+        Button speaking = Ui.button(this, "🎙 말하기 연습 (20분에 합산)");
         speaking.setOnClickListener(v -> startActivity(new Intent(this, SpeakingActivity.class)));
         root.addView(speaking);
 
