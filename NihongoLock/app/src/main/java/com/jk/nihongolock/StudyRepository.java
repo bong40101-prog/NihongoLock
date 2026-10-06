@@ -326,11 +326,11 @@ public class StudyRepository {
     public static String levelLabel(int level) {
         switch (Math.max(1, Math.min(6, level))) {
             case 1: return "Lv.1 입문";
-            case 2: return "Lv.2 JLPT N5";
-            case 3: return "Lv.3 JLPT N4";
-            case 4: return "Lv.4 JLPT N3";
-            case 5: return "Lv.5 JLPT N2";
-            default: return "Lv.6 JLPT N1";
+            case 2: return "Lv.2 N5 기초";
+            case 3: return "Lv.3 N4 기초";
+            case 4: return "Lv.4 N3 기초";
+            case 5: return "Lv.5 N3 심화·N2 준비";
+            default: return "Lv.6 N2 심화·N1 준비";
         }
     }
 
@@ -431,8 +431,10 @@ public class StudyRepository {
         int correct = p.getInt(K_CORRECT, 0);
         double rate = answered == 0 ? 0 : (double) correct / answered;
         int level = getLevel();
-        if (rate >= 0.85 && level < 6) level++;
-        else if (rate < 0.60 && level > 1) level--;
+        // Keep automatic movement conservative: promotion needs 18/20 correct,
+        // while 13/20 or fewer moves the learner down for review.
+        if (rate >= 0.90 && level < 6) level++;
+        else if (rate < 0.65 && level > 1) level--;
         p.edit().putInt(K_LEVEL, level).putInt(K_ANSWERED, 0).putInt(K_CORRECT, 0).apply();
     }
 
