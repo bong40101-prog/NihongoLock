@@ -63,6 +63,27 @@ public class SpeakingActivity extends Activity implements RecognitionListener {
     private boolean endTonePlayed;
     private boolean finishScheduled;
     private int recognitionAttempt;
+    private boolean speechDetected;
+    private boolean stopRequested;
+    private boolean autoStartPending;
+
+    private final Runnable retryListening = new Runnable() {
+        @Override public void run() {
+            if (resumed && !isFinishing() && fromStudy && !stopRequested && !finishScheduled) {
+                startListening();
+            }
+        }
+    };
+
+    private final Runnable autoStartRunnable = new Runnable() {
+        @Override public void run() {
+            autoStartPending = false;
+            if (resumed && !isFinishing() && autoStart && !autoStartRequested && !finishScheduled) {
+                autoStartRequested = true;
+                startListening();
+            }
+        }
+    };
 
     private final Runnable tick = new Runnable() {
         @Override public void run() {
@@ -140,7 +161,7 @@ public class SpeakingActivity extends Activity implements RecognitionListener {
         startButton.setOnClickListener(v -> startListening());
         card.addView(startButton);
         Button stop = Ui.button(this, "말하기 중지");
-        stop.setOnClickListener(v -> stopListening());
+        stop.setOnClickListener(v -> stopListening(true));
         card.addView(stop);
         transcript = Ui.text(this, "인식 결과가 여기에 표시됩니다.", 16, Color.LTGRAY);
         transcript.setPadding(0, Ui.dp(this, 12), 0, 0);
@@ -151,7 +172,7 @@ public class SpeakingActivity extends Activity implements RecognitionListener {
         nextButton = Ui.button(this, "다음 말하기 문제");
         nextButton.setOnClickListener(v -> {
             markInteraction();
-            stopListening();
+            stopListening(true);
             index = (index + 1) % questions.size();
             showQuestion();
         });
@@ -165,6 +186,7 @@ public class SpeakingActivity extends Activity implements RecognitionListener {
         repo.markQuestionSeen(current.id);
         answered = false;
         recognitionAttempt = 0;
+        speechDetected = false;
         finishScheduled = false;
         progress.setText((index + 1) + " / " + questions.size() + " · 문장 말하기");
         target.setText(current.writingAnswer);
@@ -179,7 +201,9 @@ public class SpeakingActivity extends Activity implements RecognitionListener {
     }
 
     private void startListening() {
-        if (listening) return;
+        if (listening || isFinishing()) return;
+        stopRequested = false;
+        speechDetected = false;
         markInteraction();
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
             status.setText("이 휴대폰에서 음성 인식을 사용할 수 없습니다.");
@@ -213,29 +237,47 @@ public class SpeakingActivity extends Activity implements RecognitionListener {
     }
 
     private void stopListening() {
-        if (recognizer != null && listening) recognizer.stopListening();
-        if (listening) playEndToneOnce();
+        stopListening(false);
+    }
+
+    private void stopListening(boolean userInitiated) {
+        boolean wasListening = listening;
+        stopRequested = true;
+        handler.removeCallbacks(retryListening);
+        if (recognizer != null && listening) {
+            try {
+                recognizer.cancel();
+            } catch (RuntimeException ignored) {}
+        }
+        if (wasListening) playEndToneOnce();
         listening = false;
         if (startButton != null) {
             startButton.setText("🎙 말하기 시작");
             startButton.setEnabled(true);
         }
+        if (userInitiated && wasListening) {
+            status.setText("말하기를 중지했습니다.");
+            status.setTextColor(Color.LTGRAY);
+            finishAfterAutoRound();
+        }
     }
 
     private void handleResult(String heard) {
+        if (stopRequested) return;
         listening = false;
         startButton.setText("🎙 말하기 시작");
         startButton.setEnabled(true);
         playEndToneOnce();
         transcript.setText("인식 결과: " + heard);
+        speechDetected = speechDetected || (heard != null && !heard.trim().isEmpty());
         boolean correct = matches(current.writingAnswer, heard);
-        if (!correct && fromStudy && recognitionAttempt < 1) {
+        if (!correct && fromStudy && speechDetected && recognitionAttempt < 1
+                && !finishScheduled) {
             recognitionAttempt++;
             status.setText("문장이 중간에 끝났거나 잘 안 들렸어요. 잠시 후 한 번 더 말해 주세요.");
             status.setTextColor(Color.rgb(255, 180, 80));
-            handler.postDelayed(() -> {
-                if (resumed && !isFinishing()) startListening();
-            }, 800L);
+            handler.removeCallbacks(retryListening);
+            handler.postDelayed(retryListening, 800L);
             return;
         }
         if (!answered) {
@@ -311,17 +353,29 @@ public class SpeakingActivity extends Activity implements RecognitionListener {
         }
     }
 
-    @Override public void onReadyForSpeech(Bundle params) { status.setText("듣고 있습니다…"); }
-    @Override public void onBeginningOfSpeech() { status.setText("말하는 중…"); }
+    @Override public void onReadyForSpeech(Bundle params) {
+        if (!stopRequested) status.setText("듣고 있습니다…");
+    }
+    @Override public void onBeginningOfSpeech() {
+        if (stopRequested) return;
+        speechDetected = true;
+        status.setText("말하는 중…");
+    }
     @Override public void onRmsChanged(float rmsdB) {}
     @Override public void onBufferReceived(byte[] buffer) {}
     @Override public void onEndOfSpeech() {
+        if (stopRequested) return;
         playEndToneOnce();
         status.setText("확인 중…");
     }
     @Override public void onPartialResults(Bundle partialResults) {
+        if (stopRequested) return;
         ArrayList<String> values = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-        if (values != null && !values.isEmpty()) transcript.setText("인식 중: " + values.get(0));
+        if (values != null && !values.isEmpty() && values.get(0) != null
+                && !values.get(0).trim().isEmpty()) {
+            speechDetected = true;
+            transcript.setText("인식 중: " + values.get(0));
+        }
     }
     @Override public void onEvent(int eventType, Bundle params) {}
     @Override public void onError(int error) {
@@ -329,13 +383,13 @@ public class SpeakingActivity extends Activity implements RecognitionListener {
         playEndToneOnce();
         if (startButton != null) startButton.setText("🎙 말하기 시작");
         if (startButton != null) startButton.setEnabled(true);
-        if (fromStudy && recognitionAttempt < 1) {
+        if (stopRequested) return;
+        if (fromStudy && speechDetected && recognitionAttempt < 1 && !finishScheduled) {
             recognitionAttempt++;
             status.setText("음성이 짧게 끝났어요. 잠시 후 한 번 더 말해 주세요.");
             status.setTextColor(Color.rgb(255, 180, 80));
-            handler.postDelayed(() -> {
-                if (resumed && !isFinishing()) startListening();
-            }, 800L);
+            handler.removeCallbacks(retryListening);
+            handler.postDelayed(retryListening, 800L);
             return;
         }
         status.setText("음성 인식이 끝나지 않았습니다. 다음 문제에서 다시 시도합니다. (" + error + ")");
@@ -349,7 +403,8 @@ public class SpeakingActivity extends Activity implements RecognitionListener {
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_RECORD_AUDIO && grantResults.length > 0
-                && grantResults[0] == PackageManager.PERMISSION_GRANTED) startListening();
+                && grantResults[0] == PackageManager.PERMISSION_GRANTED
+                && resumed && !isFinishing() && !stopRequested) startListening();
         else {
             status.setText("말하기 연습에는 마이크 권한이 필요합니다.");
             if (startButton != null) startButton.setEnabled(true);
@@ -368,14 +423,20 @@ public class SpeakingActivity extends Activity implements RecognitionListener {
         super.onResume();
         resumed = true;
         updateTimer();
-        if (autoStart && !autoStartRequested) {
-            autoStartRequested = true;
-            handler.postDelayed(() -> {
-                if (resumed && !isFinishing()) startListening();
-            }, 700L);
+        if (autoStart && !autoStartRequested && !autoStartPending && !finishScheduled) {
+            autoStartPending = true;
+            stopRequested = false;
+            handler.postDelayed(autoStartRunnable, 700L);
         }
     }
-    @Override protected void onPause() { flushPending(); resumed = false; stopListening(); super.onPause(); }
+    @Override protected void onPause() {
+        flushPending();
+        resumed = false;
+        handler.removeCallbacks(autoStartRunnable);
+        autoStartPending = false;
+        stopListening(false);
+        super.onPause();
+    }
     @Override protected void onDestroy() {
         flushPending();
         handler.removeCallbacksAndMessages(null);
