@@ -2,10 +2,12 @@ package com.jk.nihongolock;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -59,6 +61,23 @@ public class MainActivity extends Activity {
         status.addView(Ui.text(this, "연속 성공  " + repo.getStreak() + "일", 16, Color.LTGRAY));
         status.addView(Ui.text(this, "PASS  " + repo.getPasses() + " / " + StudyRepository.MAX_PASSES, 16, Color.LTGRAY));
         status.addView(Ui.text(this, "현재 레벨  " + StudyRepository.levelLabel(repo.getLevel()), 16, Color.LTGRAY));
+
+        int experience = repo.getExperiencePercent();
+        TextView experienceText = Ui.text(this, "학습 경험치  " + experience + " / 100", 16, Color.LTGRAY);
+        experienceText.setPadding(0, Ui.dp(this, 10), 0, 0);
+        status.addView(experienceText);
+        ProgressBar experienceBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        experienceBar.setMax(100);
+        experienceBar.setProgress(experience);
+        experienceBar.setProgressTintList(ColorStateList.valueOf(Color.rgb(101, 209, 138)));
+        LinearLayout.LayoutParams experienceBarParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 8));
+        experienceBarParams.setMargins(0, Ui.dp(this, 6), 0, Ui.dp(this, 4));
+        experienceBar.setLayoutParams(experienceBarParams);
+        status.addView(experienceBar);
+        status.addView(Ui.text(this,
+                "최근 20문제 정답·난이도와 실제 학습시간으로 보수적으로 계산합니다. 레벨업 판정과는 별도입니다.",
+                12, Color.GRAY));
 
         String penalty;
         if (repo.isPenaltyActive()) penalty = "🔥 벌칙 진행 중 · 45분 완료 또는 22:00 해제";
