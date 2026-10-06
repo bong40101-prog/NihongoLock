@@ -152,7 +152,7 @@ public class StudyActivity extends Activity {
         showNextTask();
     }
 
-    /** Mixes one automatic speaking round into the same 20/35-minute session. */
+    /** Mixes one automatic speaking round into the same 20/45-minute session. */
     private void showNextTask() {
         int current = repo.getTodaySeconds() + pendingSeconds;
         if (current < repo.getTargetSeconds() && !speakingQuestions.isEmpty()
@@ -232,7 +232,7 @@ public class StudyActivity extends Activity {
     @Override public void onBackPressed() {
         flushPending();
         if (repo.isPenaltyActive()) {
-            Toast.makeText(this, "벌칙 시간에는 35분 완료, PASS 사용 또는 22:00까지 나갈 수 없습니다.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "벌칙 시간에는 45분 완료, PASS 사용 또는 22:00까지 나갈 수 없습니다.", Toast.LENGTH_SHORT).show();
             return;
         }
         super.onBackPressed();
