@@ -11,6 +11,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
+import java.util.Set;
 
 public class StudyRepository {
     public static final int BASIC_SECONDS = 20 * 60;
@@ -35,7 +37,11 @@ public class StudyRepository {
     private static final String K_TOTAL_CORRECT = "total_correct";
     private static final String K_TOTAL_ANSWERED = "total_answered";
     private static final String K_ANSWER_LOG = "answer_log";
+    private static final String K_PRACTICE_LOG = "practice_log";
+    private static final String K_RECENT_QUESTION_IDS = "recent_question_ids";
     private static final int MAX_ANSWER_LOGS = 1000;
+    private static final int MAX_PRACTICE_LOGS = 200;
+    private static final int MAX_RECENT_QUESTIONS = 40;
 
     private final Context context;
     private final SharedPreferences p;
@@ -254,11 +260,47 @@ public class StudyRepository {
         return p.getBoolean(K_LEVEL_TEST_DONE, false);
     }
 
+    /** The user starts this test manually; eight of ten promotes one level. */
+    public synchronized boolean applyPromotionTest(int correct, int total) {
+        if (total != 10 || correct < 8 || getLevel() >= 6) return false;
+        setLevel(getLevel() + 1);
+        return true;
+    }
+
+    public synchronized Set<String> getRecentQuestionIds() {
+        Set<String> ids = new HashSet<>();
+        try {
+            JSONArray array = new JSONArray(p.getString(K_RECENT_QUESTION_IDS, "[]"));
+            for (int i = 0; i < array.length(); i++) {
+                String id = array.optString(i, "");
+                if (!id.isEmpty()) ids.add(id);
+            }
+        } catch (Exception ignored) {}
+        return ids;
+    }
+
+    /** Remembers the last questions shown, including across app restarts. */
+    public synchronized void markQuestionSeen(String id) {
+        if (id == null || id.trim().isEmpty()) return;
+        JSONArray array;
+        try {
+            array = new JSONArray(p.getString(K_RECENT_QUESTION_IDS, "[]"));
+        } catch (Exception ignored) {
+            array = new JSONArray();
+        }
+        for (int i = array.length() - 1; i >= 0; i--) {
+            if (id.equals(array.optString(i, ""))) array.remove(i);
+        }
+        array.put(id);
+        while (array.length() > MAX_RECENT_QUESTIONS) array.remove(0);
+        p.edit().putString(K_RECENT_QUESTION_IDS, array.toString()).apply();
+    }
+
     public synchronized String exportJson() {
         reconcile();
         JSONObject root = new JSONObject();
         try {
-            root.put("schemaVersion", 1);
+            root.put("schemaVersion", 2);
             root.put("exportedAt", Instant.now().toString());
             root.put("date", LocalDate.now().toString());
             root.put("todayStudySeconds", p.getInt(K_SECONDS, 0));
@@ -270,8 +312,9 @@ public class StudyRepository {
             root.put("totalAnswered", p.getInt(K_TOTAL_ANSWERED, 0));
             root.put("totalCorrect", p.getInt(K_TOTAL_CORRECT, 0));
             root.put("answerHistory", new JSONArray(p.getString(K_ANSWER_LOG, "[]")));
+            root.put("practiceHistory", new JSONArray(p.getString(K_PRACTICE_LOG, "[]")));
         } catch (Exception e) {
-            return "{\"schemaVersion\":1,\"error\":\"export_failed\"}";
+            return "{\"schemaVersion\":2,\"error\":\"export_failed\"}";
         }
         try {
             return root.toString(2);
@@ -292,24 +335,51 @@ public class StudyRepository {
     }
 
     public synchronized void recordAnswer(boolean correct) {
-        recordAnswerInternal(null, -1, correct, "study", true);
+        recordAnswerInternal(null, -1, correct, "study", true, null);
     }
 
     public synchronized void recordAnswer(QuestionBank.Q question, int chosen, String source) {
         if (question == null) {
-            recordAnswerInternal(null, chosen, false, source, true);
+            recordAnswerInternal(null, chosen, false, source, true, null);
             return;
         }
-        recordAnswerInternal(question, chosen, chosen == question.answer, source, true);
+        recordAnswerInternal(question, chosen, chosen == question.answer, source, true, null);
     }
 
     public synchronized void recordLevelTestAnswer(QuestionBank.Q question, int chosen) {
         if (question == null) return;
-        recordAnswerInternal(question, chosen, chosen == question.answer, "level_test", false);
+        recordAnswerInternal(question, chosen, chosen == question.answer, "level_test", false, null);
+    }
+
+    public synchronized void recordPracticeAnswer(QuestionBank.Q question, String source,
+                                                   String typedAnswer, boolean correct) {
+        if (question == null) return;
+        recordAnswerInternal(question, -1, correct, source, true, typedAnswer);
+    }
+
+    public synchronized void recordGptFeedback(String prompt, String typedAnswer, String feedback) {
+        JSONArray logs;
+        try {
+            logs = new JSONArray(p.getString(K_PRACTICE_LOG, "[]"));
+        } catch (Exception ignored) {
+            logs = new JSONArray();
+        }
+        JSONObject row = new JSONObject();
+        try {
+            row.put("at", Instant.now().toString());
+            row.put("source", "gpt_feedback");
+            row.put("prompt", prompt == null ? "" : prompt);
+            row.put("typed", typedAnswer == null ? "" : typedAnswer);
+            row.put("feedback", feedback == null ? "" : feedback);
+            logs.put(row);
+            while (logs.length() > MAX_PRACTICE_LOGS) logs.remove(0);
+            p.edit().putString(K_PRACTICE_LOG, logs.toString()).apply();
+        } catch (Exception ignored) {}
+        GitHubStudySync.schedule(context);
     }
 
     private void recordAnswerInternal(QuestionBank.Q question, int chosen, boolean correct,
-                                      String source, boolean adaptLevel) {
+                                      String source, boolean adaptLevel, String typedAnswer) {
         SharedPreferences.Editor e = p.edit()
                 .putInt(K_ANSWERED, p.getInt(K_ANSWERED, 0) + 1)
                 .putInt(K_TOTAL_ANSWERED, p.getInt(K_TOTAL_ANSWERED, 0) + 1);
@@ -317,13 +387,14 @@ public class StudyRepository {
             e.putInt(K_CORRECT, p.getInt(K_CORRECT, 0) + 1)
                     .putInt(K_TOTAL_CORRECT, p.getInt(K_TOTAL_CORRECT, 0) + 1);
         }
-        appendAnswerLog(question, chosen, correct, source);
+        appendAnswerLog(question, chosen, correct, source, typedAnswer);
         e.apply();
         if (adaptLevel) adaptLevel();
         GitHubStudySync.schedule(context);
     }
 
-    private void appendAnswerLog(QuestionBank.Q question, int chosen, boolean correct, String source) {
+    private void appendAnswerLog(QuestionBank.Q question, int chosen, boolean correct, String source,
+                                 String typedAnswer) {
         JSONArray logs;
         try {
             logs = new JSONArray(p.getString(K_ANSWER_LOG, "[]"));
@@ -337,11 +408,14 @@ public class StudyRepository {
             row.put("correct", correct);
             row.put("level", getLevel());
             if (question != null) {
+                row.put("questionId", question.id);
+                row.put("kind", question.kind);
                 row.put("question", question.prompt);
                 row.put("audio", question.audioText);
                 row.put("selected", chosen >= 0 && chosen < question.options.length ? question.options[chosen] : "");
                 row.put("answer", question.answer >= 0 && question.answer < question.options.length
                         ? question.options[question.answer] : "");
+                if (typedAnswer != null) row.put("typed", typedAnswer);
             }
             logs.put(row);
             while (logs.length() > MAX_ANSWER_LOGS) logs.remove(0);
