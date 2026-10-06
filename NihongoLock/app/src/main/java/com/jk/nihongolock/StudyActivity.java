@@ -103,7 +103,7 @@ public class StudyActivity extends Activity {
     }
 
     private void reloadQuestions() {
-        questions = QuestionBank.forLevel(repo.getLevel());
+        questions = QuestionBank.forLevel(repo.getLevel(), repo.getRecentQuestionIds());
         if (questions.isEmpty()) questions = QuestionBank.forLevel(1);
         qIndex = 0;
     }
@@ -111,7 +111,11 @@ public class StudyActivity extends Activity {
     private void showQuestion() {
         if (qIndex >= questions.size()) reloadQuestions();
         QuestionBank.Q q = QuestionBank.shuffled(questions.get(qIndex));
+        repo.markQuestionSeen(q.id);
         questionBox.removeAllViews();
+        questionBox.addView(Ui.text(this,
+                QuestionBank.kindLabel(q.kind) + " · JLPT Lv." + q.level,
+                13, Color.rgb(151, 182, 255)));
         RubyTextView prompt = Ui.rubyText(this, q.prompt, 20, Color.WHITE);
         prompt.setTextPadding(0, 0, 0, 8);
         questionBox.addView(prompt);
