@@ -23,6 +23,8 @@ public final class GitHubStudySync {
     private static final String PREFS = "github_sync_settings_v1";
     private static final String K_REPO = "repo";
     private static final String K_LAST_UPLOAD = "last_upload";
+    private static final String K_LAST_ERROR = "last_error";
+    private static final String K_PENDING = "pending";
     private static final String DEFAULT_REPO = "bong40101-prog/NihongoLock";
     private static final String FILE_PATH = "data/study-record.json";
     private static final String USER_AGENT = "NihongoLock-Android-StudySync";
@@ -58,19 +60,26 @@ public final class GitHubStudySync {
 
     public static String lastUpload(Context context) {
         long timestamp = prefs(context).getLong(K_LAST_UPLOAD, 0L);
-        return timestamp == 0L ? "아직 업로드하지 않음" : java.text.DateFormat.getDateTimeInstance().format(new java.util.Date(timestamp));
+        String error = prefs(context).getString(K_LAST_ERROR, "");
+        String uploaded = timestamp == 0L ? "아직 성공한 업로드 없음"
+                : java.text.DateFormat.getDateTimeInstance().format(new java.util.Date(timestamp));
+        if (!error.isEmpty()) return uploaded + " · 재시도 대기: " + error;
+        if (prefs(context).getBoolean(K_PENDING, false)) return uploaded + " · 업로드 대기 중";
+        return uploaded;
     }
 
     /** Uploads shortly after the latest answer/time update, avoiding one API commit per tap. */
     public static void schedule(Context context) {
         if (!isConfigured(context)) return;
         Context app = context.getApplicationContext();
+        prefs(app).edit().putBoolean(K_PENDING, true).apply();
         synchronized (LOCK) {
             if (pending != null) pending.cancel(false);
             pending = EXECUTOR.schedule(() -> {
                 try {
                     upload(app);
-                } catch (Exception ignored) {
+                } catch (Exception e) {
+                    rememberFailure(app, e);
                     // Background backup must never block or interrupt studying.
                 }
             }, 8, TimeUnit.SECONDS);
@@ -84,6 +93,7 @@ public final class GitHubStudySync {
                 upload(app);
                 if (callback != null) callback.onResult(true, "학습 기록을 GitHub에 업로드했습니다.");
             } catch (Exception e) {
+                rememberFailure(app, e);
                 if (callback != null) callback.onResult(false, "업로드 실패: " + e.getMessage());
             }
         });
@@ -123,7 +133,11 @@ public final class GitHubStudySync {
             if (code < 200 || code >= 300) {
                 throw new IllegalStateException("GitHub 응답 " + code + responseSuffix(response));
             }
-            prefs(context).edit().putLong(K_LAST_UPLOAD, System.currentTimeMillis()).apply();
+            prefs(context).edit()
+                    .putLong(K_LAST_UPLOAD, System.currentTimeMillis())
+                    .putBoolean(K_PENDING, false)
+                    .remove(K_LAST_ERROR)
+                    .apply();
         } finally {
             conn.disconnect();
         }
@@ -154,6 +168,13 @@ public final class GitHubStudySync {
         if (response == null || response.trim().isEmpty()) return "";
         String compact = response.replace('\n', ' ').trim();
         return compact.length() > 220 ? ": " + compact.substring(0, 220) + "…" : ": " + compact;
+    }
+
+    private static void rememberFailure(Context context, Exception error) {
+        String message = error == null ? "알 수 없는 오류" : error.getMessage();
+        if (message == null || message.trim().isEmpty()) message = error.getClass().getSimpleName();
+        if (message.length() > 180) message = message.substring(0, 180) + "…";
+        prefs(context).edit().putBoolean(K_PENDING, true).putString(K_LAST_ERROR, message).apply();
     }
 
     private static String readText(InputStream stream) throws Exception {
