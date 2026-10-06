@@ -97,6 +97,41 @@ public final class Furigana {
         add("説明", "せつめい");
         add("努力", "どりょく");
         add("無理", "むり");
+        add("天気", "てんき");
+        add("電話", "でんわ");
+        add("電話番号", "でんわばんごう");
+        add("入口", "いりぐち");
+        add("出口", "でぐち");
+        add("切符", "きっぷ");
+        add("朝食", "ちょうしょく");
+        add("夕食", "ゆうしょく");
+        add("名物", "めいぶつ");
+        add("宿泊", "しゅくはく");
+        add("受付", "うけつけ");
+        add("満足", "まんぞく");
+        add("期待", "きたい");
+        add("優先", "ゆうせん");
+        add("無事", "ぶじ");
+        add("印象", "いんしょう");
+        add("迷惑", "めいわく");
+        add("柔軟", "じゅうなん");
+        add("効率", "こうりつ");
+        add("根拠", "こんきょ");
+        add("妥当", "だとう");
+        add("把握", "はあく");
+        add("慎重", "しんちょう");
+        add("左側", "ひだりがわ");
+        add("一枚", "いちまい");
+        add("七時", "しちじ");
+        add("京都", "きょうと");
+        add("二泊", "にはく");
+        add("平日", "へいじつ");
+        add("安全", "あんぜん");
+        add("正確", "せいかく");
+        add("情報", "じょうほう");
+        add("十分", "じゅうぶん");
+        add("重視", "じゅうし");
+        add("大切", "たいせつ");
 
         // Single-kanji stems keep kana endings outside the ruby span.
         add("飲", "の");
@@ -146,12 +181,55 @@ public final class Furigana {
         add("早", "はや");
         add("考", "かんが");
         add("着", "つ");
+        add("右", "みぎ");
+        add("左", "ひだり");
+        add("道", "みち");
+        add("乗", "の");
+        add("降", "お");
+        add("持", "も");
+        add("忘", "わす");
+        add("換", "か");
+        add("遅", "おく");
+        add("間", "ま");
+        add("合", "あ");
+        add("空", "す");
+        add("決", "き");
+        add("調", "しら");
+        add("曲", "ま");
+        add("次", "つぎ");
+        add("昼", "ひる");
+        add("前", "まえ");
+        add("早", "はや");
+        add("売", "う");
+        add("切", "き");
+        add("扱", "あつか");
+        add("物", "もの");
+        add("答", "こた");
+        add("違", "ちが");
+        add("支払", "しはら");
+        add("後", "うし");
+        add("向", "む");
+        add("先", "さき");
+        add("支", "しはら");
+        add("方", "かた");
+        add("知", "し");
+        add("覚", "おぼ");
+        add("使", "つか");
+        add("読", "よ");
+        add("場面", "ばめん");
     }
 
     private Furigana() {}
 
     private static void add(String base, String reading) {
         READINGS.put(base, reading);
+    }
+
+    /** Registers a question-bank word so its reading can be reused in examples. */
+    public static void register(String base, String reading) {
+        if (base != null && !base.isEmpty() && reading != null && !reading.isEmpty()) {
+            READINGS.put(base, reading);
+        }
     }
 
     /** Encodes ruby spans as [base|reading] for RubyTextView. */
