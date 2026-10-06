@@ -63,7 +63,9 @@ public class StudyActivity extends Activity {
         timerText = Ui.text(this, "", 24, Color.WHITE);
         timerText.setTypeface(timerText.getTypeface(), android.graphics.Typeface.BOLD);
         root.addView(timerText);
-        stateText = Ui.text(this, "화면을 실제로 사용한 시간만 인정됩니다. 90초 이상 입력이 없으면 타이머가 멈춥니다.", 14, Color.LTGRAY);
+        stateText = Ui.text(this,
+                "문제 풀이·듣기·말하기 시간은 모두 오늘 20분에 합산됩니다. 화면을 실제로 사용한 시간만 인정되며 90초 이상 입력이 없으면 멈춥니다.",
+                14, Color.LTGRAY);
         stateText.setPadding(0, 0, 0, Ui.dp(this, 12));
         root.addView(stateText);
 
@@ -119,12 +121,19 @@ public class StudyActivity extends Activity {
         RubyTextView prompt = Ui.rubyText(this, q.prompt, 20, Color.WHITE);
         prompt.setTextPadding(0, 0, 0, 8);
         questionBox.addView(prompt);
-        Button listen = Ui.button(this, "🔊 일본어 듣기");
+        Button listen = Ui.button(this, "🔊 듣기 (오늘 20분에 포함)");
         listen.setOnClickListener(v -> {
             markInteraction();
             speech.speak(q.audioText);
         });
         questionBox.addView(listen);
+        Button speaking = Ui.button(this, "🎙 말하기 (오늘 20분에 포함)");
+        speaking.setOnClickListener(v -> {
+            markInteraction();
+            flushPending();
+            startActivity(new Intent(this, SpeakingActivity.class));
+        });
+        questionBox.addView(speaking);
         for (int i = 0; i < q.options.length; i++) {
             final int chosen = i;
             RubyTextView b = Ui.rubyButton(this, q.options[i]);
