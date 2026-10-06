@@ -91,7 +91,7 @@ public class SpeakingActivity extends Activity implements RecognitionListener {
         timer = Ui.text(this, "", 18, Color.WHITE);
         root.addView(timer);
         root.addView(Ui.text(this,
-                "일본어 음성을 듣고 따라 말해 보세요. 휴대폰의 일본어 음성 인식 기능을 사용합니다.",
+                "일본어 음성을 듣고 따라 말해 보세요. 이 시간은 메인 20분 학습에 합산됩니다. 휴대폰의 일본어 음성 인식 기능을 사용합니다.",
                 14, Color.LTGRAY));
 
         LinearLayout card = Ui.card(this);
